@@ -1,0 +1,36 @@
+* setting up the GPs for low res. meaning learn   maps from parameter-set to low
+res PCs 
+
+* Right now, maps are being learnt from a combination of parameters and low-res
+PCs to each high-res PC.  We also want to disentangle this to have a function
+to learn maps from just the low-res PCs to high-res PCs
+
+* Be able to combine the maps in a) and b) to get maps from parameter-set to each
+high-res PC. When combining, we should first stick with just the mean component
+of the GPs (i.e. just one realization that gives the mean value rather than a
+spread)
+
+* Next compute the improvement in accuracy of due to a data point. Here is
+David's note on that. Essentially holding out a point at a time computing
+improvement between that and including the point:
+
+D0 is the data set with x's and values of all IS's f_i(x).
+D_i is the data set with x's and values only of IS f_i(x).
+
+for k = 1 to {large}:
+{
+  Leave out one element of D0 (so that we have a
+      held-out pair (x*, f0(x*)), giving D0'
+  Leave out one element of D_i, giving D'_i.
+  Run our MISO composite estimate using D'_i and D0'
+     to form an estimate of what f0(x*) is. Subtract from
+     the true value f0(x*). Write the difference as alpha(k).
+  Run our MISO composite estimate using D_i (not
+     D'_i) and D0' to form an estimate of what f0(x*) is. Subtract from
+     the true value f0(x*). Write the difference as beta(k).
+  Store improvement_i(k) = |alpha(k)| - |beta(k)|
+}
+
+(N.b., if we use leave-one out xval., then improvement_i
+has |D0| x |D_i| elements.) 
+
