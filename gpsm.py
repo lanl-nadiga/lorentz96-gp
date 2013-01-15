@@ -80,4 +80,7 @@ gps = [gp_model(mesh_high.indices, mesh_low.d1, mesh_high.pca_output, i) for i i
 # learn map from params to high_pca_values
 gps_prm = [gp_model(mesh_high.indices, mesh_low.d1[:,:4], mesh_high.pca_output, i) for i in range(mesh_high.PCA.n_components)]
 
+# learn map from params to low pca values
+gps_prm_to_low = [gp_model(mesh_low.d1[:,:2], mesh_low.pca_output, i) for i in range(mesh_low.PCA.n_components)]
+
 # gps_fft = [ gp_model(mesh_low.d1_fft, mesh_high.pca_fft_output, i) for i in range(mesh_high.PCA_FFT.n_components) ]
