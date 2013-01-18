@@ -18,29 +18,53 @@ import pymc
 import sys
 
 def gps(name):
-	if name == "fft":
-		return gpsm.gps_fft
-	elif name == "id":
+	if name == "id":
 		return gpsm.gps
-	elif name == "prm":
-		return gpsm.gps_prm
+	elif name == "prm_to_low":
+		return gpsm.gps_prm_to_low
+	elif name == "prm_to_high":
+		return gpsm.gps_prm_to_high
+	elif name == "low_to_high":
+		return gpsm.gps_low_to_high
 
 def sample(name, index):
-
 	gp = gps(name)[index]
 	mc = pymc.MCMC(gp, db='pickle', dbname='gpsm-b0-{0}-{1}'.format(name, index))
-	mc.sample(400, burn_till_tuned=True,thin=40)
-	# mc.db.close()
+	# mc.sample(400, burn_till_tuned=True, thin=40)
+	mc.sample(2, burn_till_tuned=True)
+	mc.db.close()
 
 def samplers(name):
-	return [pymc.MCMC(gp, db=pymc.database.pickle.load('gpsm-b0-{0}-{1}'.format(name, gp['output_index']))) for gp in gps(name)]
+	return [pymc.MCMC(gp, db=pymc.database.pickle.load(
+		'gpsm-b0-{0}-{1}'.format(name, gp['output_index']))) for gp in gps(name)]
 
 	
-def id1():
+def prm_to_low_to_high():
+	# I run this at main level 
+	name = 'prm_to_low'
+
+	d1 = gpsm.mesh_low.d1[:,:4] # First 4 components of d1 are parameters
+	p2l = empty([mesh_low.PCA.n_components,len(d1)])
+		    
+	for i in range(mesh_low.PCA.n_components):
+		gp = gps(name)[i]
+		mc = pymc.MCMC(gp, db=pymc.database.pickle.load('gpsm-b0-{0}-{1}'.format(name,i)))
+		p2l[i] = mc.GP.f.trace()[-1](d1)
+
+	name = 'low_to_high'
+	index = 1
+	gp = gps(name)[index]
+	mc0 = pymc.MCMC(gp, db=pymc.database.pickle.load('gpsm-b0-{0}-{1}'.format(name,index)))
+	tr1 = mc0.GP.f.trace()
+	p2l2h = tr1[-1](p2l.T)
+
+	plot(p2l2h,'o')
+		
+def plt_learnt_map():
 	'''
 	NOTE: Even though in a function defintion, because of scoping rules, Run this at main level
 	'''
-	name = 'prm'
+	name = 'low_to_high'
 	index = 1
 	
 	gp = gps(name)[index]
@@ -49,8 +73,19 @@ def id1():
 
 	if name == 'prm':
 		d1 = gpsm.mesh_low.d1[:,:4] # First 4 components of d1 are parameters
+		obs_loc = gpsm.mesh_high.indices
+		obs = gpsm.mesh_high.pca_output[:,1]
+
 	elif name == "id":
 		d1 = gpsm.mesh_low.d1 # After the 4 parameters are low_res PCA amplitudes
+		obs_loc = gpsm.mesh_high.indices
+		obs = gpsm.mesh_high.pca_output[:,1]
+
+	elif name == "low_to_high":
+		d1 = gpsm.mesh_low.d1[:,4:] # After the 4 parameters are low_res PCA amplitudes
+		obs_loc = gpsm.mesh_high.indices
+		obs = gpsm.mesh_high.pca_output[:,1]
+
 
 
 	# d2 = d1
@@ -71,8 +106,6 @@ def id1():
 	clf()
 	plot(tr1[0](d1),'o',ms=5,label='Realizations of Learnt Map')
 	[plot(tr1[i](d1),'o',ms=4) for i in range(0,len(tr1),1)]
-	obs_loc = gpsm.mesh_high.indices
-	obs = gpsm.mesh_high.pca_output[:,1]
 	plot(obs_loc,obs,'r*',ms=20,label='Training Set')
 
 	hi_thin = 6

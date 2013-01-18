@@ -6,10 +6,12 @@ import model
 import mesh_low
 import mesh_high
 
+# WHAT IS I???
 def mean(I, h, b, c, F):
 	return numpy.zeros(len(I))
 	# return numpy.ones(len(I))*(F-10)*5
 
+'''
 def gp_model(parameter_lattice_points, d1, output_high, output_index):
 #	nu = pymc.Normal('nu', 1.5, 1.5, value=1.5)
 #	phi = pymc.Lognormal('phi', mu=.4, tau=1, value=1)
@@ -73,14 +75,54 @@ def gp_model(parameter_lattice_points, d1, output_high, output_index):
 
 	l = locals()
 	return { k: l[k] for k in ['parameter_lattice_points', 'output_index', 'nu', 'phi', 'theta', 'GP', 'variance', 'data'] }
+'''
+
+def gp_model(parameter_lattice_points, d1, output, output_index):
+
+	# Prior parameters of C
+	nu = pymc.Uniform('nu', 1., 3.)
+	phi = pymc.Lognormal('phi', mu=.4, tau=.1)#, value=1)
+	theta = pymc.Lognormal('theta', mu=.5, tau=1)#, value=1)
+	
+	# The covariance dtrm C is valued as a Covariance object.
+	@pymc.deterministic
+	def C(eval_fun = gp.matern.euclidean, diff_degree = nu, amp = phi, scale = theta):
+		return gp.NearlyFullRankCovariance(eval_fun,
+						   diff_degree = diff_degree, amp = amp, scale = scale)
+	# The mean M is valued as a Mean object.
+	@pymc.deterministic
+	def M(eval_fun = mean, h=model.coupling, b=model.amplitude, c=model.timescale, F=model.forcing):
+		return gp.Mean(eval_fun, h=h, b=b, c=c, F=F)
+
+	# Define, on appropriate mesh, the GP with mean M and covariance C
+	GP = gp.GPSubmodel('gpsm', M, C, d1[parameter_lattice_points])
+
+	# Observation variance
+	variance = pymc.Lognormal('variance', mu=-1, tau=1., value=0.0001)
+
+	# Observations for the map to learn
+	data = pymc.Normal('data', mu=GP.f(d1[parameter_lattice_points]),
+			   tau = 1./variance, value=output[:, output_index], observed=True)
+
+	l = locals()
+	return { k: l[k] for k in ['parameter_lattice_points', 'output_index',
+				   'nu', 'phi', 'theta', 'GP', 'variance', 'data'] }
+
+
 
 # learn map from (params,low_pca_values) to high_pca_values
-gps = [gp_model(mesh_high.indices, mesh_low.d1, mesh_high.pca_output, i) for i in range(mesh_high.PCA.n_components)]
+gps = [gp_model(mesh_high.indices, mesh_low.d1, mesh_high.pca_output, i)
+       for i in range(mesh_high.PCA.n_components)]
 
 # learn map from params to high_pca_values
-gps_prm = [gp_model(mesh_high.indices, mesh_low.d1[:,:4], mesh_high.pca_output, i) for i in range(mesh_high.PCA.n_components)]
+gps_prm_to_high = [gp_model(mesh_high.indices, mesh_low.d1[:,:4], mesh_high.pca_output, i)
+		   for i in range(mesh_high.PCA.n_components)]
 
 # learn map from params to low pca values
-gps_prm_to_low = [gp_model(mesh_low.indices, mesh_low.d1[:,:2], mesh_low.pca_output, i) for i in range(mesh_low.PCA.n_components)]
+gps_prm_to_low = [gp_model(mesh_low.indices, mesh_low.d1[:,:4], mesh_low.pca_output, i)
+		  for i in range(mesh_low.PCA.n_components)]
+
+gps_low_to_high = [gp_model(mesh_high.indices, mesh_low.d1[:,4:], mesh_high.pca_output, i)
+		  for i in range(mesh_high.PCA.n_components)]
 
 # gps_fft = [ gp_model(mesh_low.d1_fft, mesh_high.pca_fft_output, i) for i in range(mesh_high.PCA_FFT.n_components) ]

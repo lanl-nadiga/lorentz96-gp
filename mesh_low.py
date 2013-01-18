@@ -42,6 +42,8 @@ else:
 def distance(Y, p = 2):
 	return numpy.array([ sum( (Y - output[k]) ** p ) ** (1./p) for k in indices ])
 
+indices = numpy.array(indices)
+
 PCA = sk.PCA(0.99)
 pca_output = PCA.fit_transform(numpy.array(output).reshape(count**npar, model.J))
 print 'mesh_low PCA components: ', PCA.n_components, PCA.explained_variance_ratio_
