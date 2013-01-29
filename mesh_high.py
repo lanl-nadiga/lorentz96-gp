@@ -13,10 +13,13 @@ try:
 except NameError:
 	rngfac = 0
 
+new_dataset = False
+
 try:
 	hi_thin
 except NameError:
-	hi_thin = 9
+	hi_thin = 7
+	new_dataset = True
 
 print 'mesh_high:  hi_thin is ', hi_thin
 
@@ -28,18 +31,16 @@ else:
 	numpy.save(filename, indices)
 
 def integrate(i):
-	print 'i = %d' % i
-	print 'i_high = %s' % str(indices[i])
-	print 'ii = %s' % str(mesh_low.indices[indices[i]])
-	print 'input = %s' % str(mesh_low.input[mesh_low.indices[indices[i]]])
-	return model.integrate_high(*mesh_low.input[mesh_low.indices[indices[i]]])
+	print 'i = %d' % i, '; input = %s' % str(mesh_low.input[i])
+	return model.integrate(50, *mesh_low.input[i])
 
 filename = 'output-mesh-high-{0}-{1}.npy'.format(hi_thin,rngfac)
 if os.path.exists(filename):
 	output = numpy.load(filename)
 else:
 	p = Pool(12)
-	output = p.map(integrate, range(len(indices)))
+	print 'mesh_high: indices: ',indices
+	output = p.map(integrate, indices)
 	# output = map(integrate, range(len(indices)))
 	numpy.save(filename, output)
 
@@ -49,12 +50,14 @@ def distance(Y, p = 2):
 
 #PCA = mlab.PCA(output[:,0:model.Jhigh])
 #pca_output = PCA.project(output[:,0:model.Jhigh])
-if hi_thin == 9:
+if new_dataset:
 	PCA = sk.PCA(0.99)
 	pca_output = PCA.fit_transform(output)
 else:
 	PCA = gpsm.mesh_high.PCA
 	pca_output = PCA.transform(output)
+
+PCA.n_components = 1
 print 'mesh_high PCA components: ', PCA.n_components, PCA.explained_variance_ratio_
 
 # fft_output = fft(output)
